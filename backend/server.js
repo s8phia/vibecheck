@@ -2,6 +2,7 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const rp = require('request-promise')
+const redditRoutes = require('./routes.js/reddit.js')
 
 const app = express()
 const port = 3000;
@@ -12,6 +13,15 @@ app.use(cors({
     origin: process.env.FRONTEND_URL,
     credentials: true
 }))
+
+// Middleware to pass redditToken to reddit routes
+app.use('/reddit', (req, res, next) => {
+    req.redditToken = redditToken;
+    next();
+});
+
+// Mount reddit routes
+app.use('/reddit', redditRoutes);
 
 app.get('/auth/reddit', (req, res) => {
     const authUrl = `https://www.reddit.com/api/v1/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&state=RANDOM&redirect_uri=${process.env.REDIRECT_URI}&duration=permanent&scope=read submit`;
@@ -69,35 +79,6 @@ app.post('/logout', (req, res) => {
     res.json({ message: 'Logged out successfully' });
 })
 
-// Route to fetch Reddit data using the token
-app.get('/reddit/posts/:subreddit', async (req, res) => {
-    if (!redditToken) {
-        return res.status(401).json({ error: 'Please authenticate first by visiting /auth/reddit' });
-    }
-
-    const { subreddit } = req.params;
-    const { limit = 10 } = req.query;
-
-    try {
-        const response = await rp({
-            method: 'GET',
-            uri: `https://oauth.reddit.com/r/${subreddit}/hot`,
-            headers: {
-                'Authorization': `Bearer ${redditToken}`,
-                'User-Agent': process.env.USER_AGENT || 'VibeCheckApp/1.0.0 (by /u/unknown)'
-            },
-            qs: {
-                limit: limit
-            },
-            json: true
-        });
-
-        res.json(response);
-    } catch (error) {
-        console.error('Reddit API Error:', error.message);
-        res.status(500).json({ error: 'Failed to fetch Reddit data: ' + error.message });
-    }
-})
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

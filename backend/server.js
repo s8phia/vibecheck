@@ -2,7 +2,8 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const rp = require('request-promise')
-const redditRoutes = require('./routes.js/reddit.js')
+const redditRoutes = require('./routes/reddit.js')
+const commentRoutes = require('./routes/comments.js')
 
 const app = express()
 const port = 3000;
@@ -14,14 +15,23 @@ app.use(cors({
     credentials: true
 }))
 
+// Parse JSON bodies
+app.use(express.json())
+
 // Middleware to pass redditToken to reddit routes
 app.use('/reddit', (req, res, next) => {
     req.redditToken = redditToken;
     next();
 });
 
+app.use('/comments', (req, res, next) => {
+    req.redditToken = redditToken;
+    next();
+});
+
 // Mount reddit routes
 app.use('/reddit', redditRoutes);
+app.use('/comments', commentRoutes);
 
 app.get('/auth/reddit', (req, res) => {
     const authUrl = `https://www.reddit.com/api/v1/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&state=RANDOM&redirect_uri=${process.env.REDIRECT_URI}&duration=permanent&scope=read submit`;

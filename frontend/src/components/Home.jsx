@@ -2,30 +2,9 @@ import { useState } from 'react';
 
 const Home = () => {
     const [subreddit, setSubreddit] = useState('');
-    const [posts, setPosts] = useState([]);
     const [analysisData, setAnalysisData] = useState(null);
-    const [loading, setLoading] = useState(false);
     const [analysisLoading, setAnalysisLoading] = useState(false);
-    const [error, setError] = useState(null);
     const [analysisError, setAnalysisError] = useState(null);
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/reddit/posts/${subreddit}`);
-            if(!response.ok){
-                throw new Error('Failed to fetch posts');
-            }
-            const data = await response.json();
-            setPosts(data.data.children); // Set the posts data
-        } catch(error){
-            setError(error.message);
-            console.error('Error fetching posts:', error);
-        } finally {
-            setLoading(false);
-        }
-    }
 
     const handleAnalyze = async () => {
         if (!subreddit.trim()) return;
@@ -53,27 +32,26 @@ const Home = () => {
             <h1>VibeCheck - Reddit Analysis</h1>
             <div style={{marginBottom: '20px'}}>
                 <div style={{marginBottom: '10px'}}>Enter a subreddit to analyze its vibe</div>
-                <form onSubmit={handleSubmit} style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
+                <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
                     <input 
                         type="text" 
                         placeholder="Enter subreddit name (e.g., AskReddit)" 
                         value={subreddit}
                         onChange={(e) => setSubreddit(e.target.value)}
-                        disabled={loading || analysisLoading}
+                        disabled={analysisLoading}
                         style={{flex: 1, padding: '10px', fontSize: '16px'}}
                     />
                     <button 
                         type="button" 
                         onClick={handleAnalyze} 
-                        disabled={loading || analysisLoading || !subreddit.trim()}
+                        disabled={analysisLoading || !subreddit.trim()}
                         style={{padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px'}}
                     >
                         {analysisLoading ? 'Analyzing...' : 'AI Analyze'}
                     </button>
-                </form>
+                </div>
             </div>
             
-            {error && <div style={{color: 'red', marginBottom: '10px', padding: '10px', backgroundColor: '#ffebee', borderRadius: '4px'}}>Error: {error}</div>}
             {analysisError && <div style={{color: 'red', marginBottom: '10px', padding: '10px', backgroundColor: '#ffebee', borderRadius: '4px'}}>Analysis Error: {analysisError}</div>}
             
             {/* AI Analysis Results */}
@@ -81,10 +59,6 @@ const Home = () => {
                 <div style={{marginBottom: '30px', padding: '20px', backgroundColor: '#f5f5f5', borderRadius: '8px'}}>
                     <h2>🤖 AI Analysis Results for r/{analysisData.subreddit}</h2>
                     <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px'}}>
-                        <div style={{padding: '15px', backgroundColor: 'white', borderRadius: '6px', textAlign: 'center'}}>
-                            <h3 style={{margin: '0 0 10px 0', color: '#333'}}>Total Posts</h3>
-                            <div style={{fontSize: '24px', fontWeight: 'bold', color: '#2196F3'}}>{analysisData.analysis_summary.total_posts}</div>
-                        </div>
                         <div style={{padding: '15px', backgroundColor: 'white', borderRadius: '6px', textAlign: 'center'}}>
                             <h3 style={{margin: '0 0 10px 0', color: '#333'}}>Texts Analyzed</h3>
                             <div style={{fontSize: '24px', fontWeight: 'bold', color: '#4CAF50'}}>{analysisData.analysis_summary.total_texts_analyzed}</div>

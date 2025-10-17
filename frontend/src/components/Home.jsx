@@ -1,10 +1,52 @@
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Home = () => {
+    const { logout } = useAuth();
     const [subreddit, setSubreddit] = useState('');
     const [analysisData, setAnalysisData] = useState(null);
     const [analysisLoading, setAnalysisLoading] = useState(false);
     const [analysisError, setAnalysisError] = useState(null);
+    const [suggestions, setSuggestions] = useState(null);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+    const [suggestionsError, setSuggestionsError] = useState(null);
+
+
+    const handleGetSuggestions = async (analysisDataToUse = analysisData) => {
+        if (!analysisDataToUse) return;
+
+        setSuggestionsLoading(true);
+        setSuggestionsError(null);
+        setSuggestions(null);
+
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/suggestions`, {
+                method: 'POST',
+                body: JSON.stringify({ subredditData: [{
+                    name: analysisDataToUse.subreddit,
+                    toxicity_rate: analysisDataToUse.analysis_summary.toxicity_rate,
+                    positive_rate: analysisDataToUse.analysis_summary.positive_rate,
+                    negative_rate: analysisDataToUse.analysis_summary.negative_rate,
+                    total_texts_analyzed: analysisDataToUse.analysis_summary.total_texts_analyzed,
+                }] 
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+            if (!response.ok) {
+                throw new Error('Failed to get suggestions');
+            }
+            const data = await response.json();
+            setSuggestions(data);
+        }
+        catch (error) {
+            setSuggestionsError(error.message);
+            console.error('Error getting suggestions:', error);
+        } finally {
+            setSuggestionsLoading(false);
+        }
+    }
 
     const handleAnalyze = async () => {
         if (!subreddit.trim()) return;
@@ -12,6 +54,8 @@ const Home = () => {
         setAnalysisLoading(true);
         setAnalysisError(null);
         setAnalysisData(null);
+        setSuggestions(null);
+        setSuggestionsError(null);
         
         try {
             const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/comments/analyze-subreddit/${subreddit}?limit=5&comments_limit=20`);
@@ -20,6 +64,9 @@ const Home = () => {
             }
             const data = await response.json();
             setAnalysisData(data);
+            
+            // get suggestions after analysis is complete
+            await handleGetSuggestions(data);
         } catch (error) {
             setAnalysisError(error.message);
             console.error('Error analyzing subreddit:', error);
@@ -29,7 +76,22 @@ const Home = () => {
     }
     return (
         <div style={{padding: '20px', maxWidth: '1200px', margin: '0 auto'}}>
-            <h1>VibeCheck - Reddit Analysis</h1>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                <h1>VibeCheck - Reddit Analysis</h1>
+                <button 
+                    onClick={logout}
+                    style={{
+                        padding: '8px 16px',
+                        backgroundColor: '#f44336',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Logout
+                </button>
+            </div>
             <div style={{marginBottom: '20px'}}>
                 <div style={{marginBottom: '10px'}}>Enter a subreddit to analyze its vibe</div>
                 <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
@@ -57,7 +119,7 @@ const Home = () => {
             {/* AI Analysis Results */}
             {analysisData && (
                 <div style={{marginBottom: '30px', padding: '20px', backgroundColor: '#f5f5f5', borderRadius: '8px'}}>
-                    <h2>🤖 AI Analysis Results for r/{analysisData.subreddit}</h2>
+                    <h2>AI Analysis Results for r/{analysisData.subreddit}</h2>
                     <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px'}}>
                         <div style={{padding: '15px', backgroundColor: 'white', borderRadius: '6px', textAlign: 'center'}}>
                             <h3 style={{margin: '0 0 10px 0', color: '#333'}}>Texts Analyzed</h3>
@@ -80,7 +142,7 @@ const Home = () => {
                     </div>
                     
                     <div style={{marginTop: '20px'}}>
-                        <h3>📊 Detailed Analysis</h3>
+                        <h3> Detailed Analysis</h3>
                         {analysisData.data.map((postData, index) => (
                             <div key={index} style={{border: '1px solid #ddd', margin: '15px 0', padding: '15px', backgroundColor: 'white', borderRadius: '6px'}}>
                                 <h4 style={{margin: '0 0 10px 0', color: '#333'}}>{postData.post.title}</h4>
@@ -103,7 +165,6 @@ const Home = () => {
                                     )}
                                 </div>
                                 
-                                {/* Comments Analysis */}
                                 {postData.analysis.comments.length > 0 && (
                                     <div>
                                         <strong>Top Comments Analysis ({postData.analysis.comments.length} analyzed):</strong>
@@ -124,8 +185,37 @@ const Home = () => {
                             </div>
                         ))}
                     </div>
+                    
+                    {suggestionsLoading && (
+                        <div style={{marginTop: '20px', textAlign: 'center', padding: '20px'}}>
+                            <div style={{color: '#666', fontSize: '16px'}}>
+                                🤖 Getting AI suggestions...
+                            </div>
+                        </div>
+                    )}
+                </div> 
+            )}
+
+            {suggestionsError && (
+                <div style={{color: 'red', marginBottom: '10px', padding: '10px', backgroundColor: '#ffebee', borderRadius: '4px'}}>
+                    Suggestions Error: {suggestionsError}
                 </div>
             )}
+
+            {suggestions && (
+                <div style={{marginBottom: '30px', padding: '20px', backgroundColor: '#e8f5e8', borderRadius: '8px'}}>
+                    <h2> Steps to take for r/{analysisData.subreddit}</h2>
+                    <div style={{
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: '1.6',
+                        fontSize: '16px',
+                        color: '#333'
+                    }}>
+                        {suggestions}
+                    </div>
+                </div>
+            )}
+
         </div>
     )
 

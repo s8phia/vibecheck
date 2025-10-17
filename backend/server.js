@@ -4,6 +4,7 @@ const cors = require('cors')
 const rp = require('request-promise')
 const redditRoutes = require('./routes/reddit.js')
 const commentRoutes = require('./routes/comments.js')
+const suggestionRoutes = require('./utils/suggestions.js')
 
 const app = express()
 const port = 3000;
@@ -32,6 +33,7 @@ app.use('/comments', (req, res, next) => {
 // Mount reddit routes
 app.use('/reddit', redditRoutes);
 app.use('/comments', commentRoutes);
+app.use('/suggestions', suggestionRoutes);
 
 app.get('/auth/reddit', (req, res) => {
     const authUrl = `https://www.reddit.com/api/v1/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&state=RANDOM&redirect_uri=${process.env.REDIRECT_URI}&duration=permanent&scope=read submit`;
